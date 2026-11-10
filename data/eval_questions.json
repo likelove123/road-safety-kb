@@ -1,0 +1,22 @@
+[
+  {"id": "Q01", "category": "制度", "question": "运输危险货物，车上必须配押运人员吗？", "gold_law": "", "gold_article": ""},
+  {"id": "Q02", "category": "制度", "question": "客运班车凌晨2点到5点能不能上高速？", "gold_law": "", "gold_article": ""},
+  {"id": "Q03", "category": "制度", "question": "危险货物运输车辆能不能在高速公路服务区长时间停放？", "gold_law": "", "gold_article": ""},
+  {"id": "Q04", "category": "制度", "question": "从事道路旅客运输，对驾驶员从业资格有什么要求？", "gold_law": "", "gold_article": ""},
+  {"id": "Q05", "category": "制度", "question": "运输企业必须配备专职安全生产管理人员吗？配备几人？", "gold_law": "", "gold_article": ""},
+  {"id": "Q06", "category": "制度", "question": "营运客车多久必须做一次综合性能检测？", "gold_law": "", "gold_article": ""},
+  {"id": "Q07", "category": "制度", "question": "危险货物运输车辆必须安装哪些监控设备？", "gold_law": "", "gold_article": ""},
+  {"id": "Q08", "category": "制度", "question": "包车客运能不能沿途揽客？", "gold_law": "", "gold_article": ""},
+  {"id": "Q09", "category": "操作", "question": "驾驶员连续驾驶多长时间必须停车休息？休息多久？", "gold_law": "", "gold_article": ""},
+  {"id": "Q10", "category": "操作", "question": "出车前驾驶员要做哪几项安全检查？", "gold_law": "", "gold_article": ""},
+  {"id": "Q11", "category": "操作", "question": "运输途中发现车辆制动异常，应该怎么处置？", "gold_law": "", "gold_article": ""},
+  {"id": "Q12", "category": "操作", "question": "动态监控平台发现超速报警，企业管理员应当怎么处理？", "gold_law": "", "gold_article": ""},
+  {"id": "Q13", "category": "操作", "question": "发生危险货物泄漏，第一现场处置步骤是什么？", "gold_law": "", "gold_article": ""},
+  {"id": "Q14", "category": "操作", "question": "雨雪冰冻天气下，客运企业应启动什么措施？", "gold_law": "", "gold_article": ""},
+  {"id": "Q15", "category": "案例", "question": "客车超员导致事故，企业负责人要承担什么责任？", "gold_law": "", "gold_article": ""},
+  {"id": "Q16", "category": "案例", "question": "未按规定进行动态监控，发生事故后如何追责？", "gold_law": "", "gold_article": ""},
+  {"id": "Q17", "category": "案例", "question": "危险货物运输未配备押运员，属于违反哪一条？", "gold_law": "", "gold_article": ""},
+  {"id": "Q18", "category": "案例", "question": "车辆逾期未检验仍投入营运，违反哪条规定？", "gold_law": "", "gold_article": ""},
+  {"id": "Q19", "category": "案例", "question": "驾驶员疲劳驾驶引发事故，企业是否承担责任？", "gold_law": "", "gold_article": ""},
+  {"id": "Q20", "category": "案例", "question": "站外揽客发生事故，客运站承担什么责任？", "gold_law": "", "gold_article": ""}
+]

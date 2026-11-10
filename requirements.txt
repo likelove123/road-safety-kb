@@ -1,0 +1,9 @@
+streamlit==1.67.0
+chromadb==1.5.9
+openai==3.49.0
+fastembed
+pypdf
+python-docx
+rank-bm25
+jieba
+python-dotenv
