@@ -26,6 +26,7 @@ CHUNK_FILE = ROOT / "data" / "chunks.jsonl"
 DB_DIR = ROOT / "data" / "chroma"
 COLLECTION = "road_safety"
 KB_DB = ROOT / "data" / "kb.db"          # 文档元数据与审核流程（SQLite）
+USERS_DB = ROOT / "data" / "users.db"    # 自助注册的访客账号（SQLite）
 UPLOAD_DIR = ROOT / "data" / "uploads"    # 后台上传的原始文件
 SAMPLE_DIR = ROOT / "data" / "samples"    # 示例文档（用于演示入库流程）
 

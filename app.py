@@ -281,18 +281,40 @@ def render_login() -> None:
             '<div class="login-sub">管理员可维护知识库；临时访客仅可查询，不能修改数据</div>',
             unsafe_allow_html=True,
         )
-        with st.form("login_form"):
-            username = st.text_input("账号", placeholder="请输入账号")
-            password = st.text_input("密码", type="password", placeholder="请输入密码")
-            ok = st.form_submit_button("登 录", type="primary", use_container_width=True)
-        if ok:
-            user = auth.authenticate(username, password)
-            if user:
-                auth.login(user)
-                st.rerun()
-            else:
-                st.error("账号或密码不正确")
-        st.caption("演示账号：管理员 admin / admin123　·　访客 guest / guest123")
+        tab_login, tab_register = st.tabs(["登 录", "注 册"])
+        with tab_login:
+            with st.form("login_form"):
+                username = st.text_input("账号", placeholder="请输入账号", key="login_user")
+                password = st.text_input("密码", type="password", placeholder="请输入密码", key="login_pwd")
+                ok = st.form_submit_button("登 录", type="primary", use_container_width=True)
+            if ok:
+                user = auth.authenticate(username, password)
+                if user:
+                    auth.login(user)
+                    st.rerun()
+                else:
+                    st.error("账号或密码不正确")
+            st.caption("演示账号：管理员 admin / admin123　·　访客 guest / guest123")
+
+        with tab_register:
+            with st.form("register_form"):
+                new_user = st.text_input("账号", placeholder="1-6 位中文或英文字母", key="reg_user")
+                new_pwd = st.text_input(
+                    "密码", type="password", placeholder="1-10 位英文与数字，至少含 1 位英文", key="reg_pwd"
+                )
+                new_pwd2 = st.text_input("确认密码", type="password", placeholder="请再次输入密码", key="reg_pwd2")
+                reg_ok = st.form_submit_button("注 册", type="primary", use_container_width=True)
+            if reg_ok:
+                if new_pwd != new_pwd2:
+                    st.error("两次输入的密码不一致")
+                else:
+                    err = auth.register(new_user, new_pwd)
+                    if err:
+                        st.error(err)
+                    else:
+                        auth.login({"username": new_user.strip(), "role": "guest", "name": "临时访客"})
+                        st.rerun()
+            st.caption("注册账号默认为临时访客（只读）：可问答、案情研判、查阅文档库，不能入库或审核。")
 
 
 def render_header(user: dict) -> None:
