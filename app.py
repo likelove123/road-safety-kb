@@ -147,6 +147,21 @@ section[data-testid="stSidebar"] * { color:#e8eef7 !important; }
 [data-testid="stChatMessage"][data-test-role="assistant"] {
   background:#fff !important; border:1px solid #e2e8f4;
   box-shadow:0 2px 8px rgba(11,61,124,.06);
+  color:#1a1a1a !important;
+}
+/* 强制 AI 回答正文为深色，避免手机浏览器把文字渲染成浅色看不清 */
+[data-testid="stChatMessage"][data-test-role="assistant"] p,
+[data-testid="stChatMessage"][data-test-role="assistant"] li,
+[data-testid="stChatMessage"][data-test-role="assistant"] span,
+[data-testid="stChatMessage"][data-test-role="assistant"] div,
+[data-testid="stChatMessage"][data-test-role="assistant"] ul,
+[data-testid="stChatMessage"][data-test-role="assistant"] ol {
+  color:#1a1a1a !important;
+}
+[data-testid="stChatMessage"][data-test-role="assistant"] strong,
+[data-testid="stChatMessage"][data-test-role="assistant"] b {
+  color:#0b3d7c !important;
+  font-weight:700 !important;
 }
 
 /* 引用卡片 */
