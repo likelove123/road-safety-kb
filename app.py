@@ -140,28 +140,36 @@ section[data-testid="stSidebar"] * { color:#e8eef7 !important; }
 }
 .history-chip button:hover { border-color:var(--gov-red) !important; color:var(--gov-red) !important; }
 
-/* 聊天气泡 */
+/* 聊天气泡 —— Streamlit 1.67 已移除 data-test-role，改用 avatar testid 区分 */
 [data-testid="stChatMessage"] { border-radius:8px !important; padding:4px 6px !important; }
-[data-testid="stChatMessage"][data-test-role="user"] { background: var(--gov-blue) !important; }
-[data-testid="stChatMessage"][data-test-role="user"] * { color:#fff !important; }
-[data-testid="stChatMessage"][data-test-role="assistant"] {
-  background:#0a1929 !important; border:1px solid #1f3a5f;
-  box-shadow:0 2px 8px rgba(0,0,0,.35);
-  color:#ffffff !important;
-}
+
+/* 用户消息：政务蓝底白字 */
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background: var(--gov-blue) !important; }
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) * { color:#fff !important; }
+
 /* AI 回答：黑底白字，手机端强制高对比 */
-[data-testid="stChatMessage"][data-test-role="assistant"] * {
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
+  background:#0a1929 !important; border:1px solid #1f3a5f !important;
+  box-shadow:0 2px 8px rgba(0,0,0,.35) !important;
   color:#ffffff !important;
 }
-[data-testid="stChatMessage"][data-test-role="assistant"] strong,
-[data-testid="stChatMessage"][data-test-role="assistant"] b {
-  color:#ffd166 !important;
-  font-weight:700 !important;
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) * { color:#ffffff !important; }
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) strong,
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) b {
+  color:#ffd166 !important; font-weight:700 !important;
 }
+/* 兜底：不依赖 :has() 的浏览器，用 content 的 aria-label 命中 */
+[data-testid="stChatMessageContent"][aria-label="Chat message from assistant"] {
+  background:#0a1929 !important; border-radius:8px !important;
+}
+[data-testid="stChatMessageContent"][aria-label="Chat message from assistant"],
+[data-testid="stChatMessageContent"][aria-label="Chat message from assistant"] * { color:#ffffff !important; }
+[data-testid="stChatMessageContent"][aria-label="Chat message from user"],
+[data-testid="stChatMessageContent"][aria-label="Chat message from user"] * { color:#ffffff !important; }
+
 /* "查看引用"展开区也用深色，避免白底透出 */
-[data-testid="stChatMessage"][data-test-role="assistant"] [data-testid="stExpander"] {
-  background:#0f2140 !important;
-  border-color:#1f3a5f !important;
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stExpander"] {
+  background:#0f2140 !important; border-color:#1f3a5f !important;
 }
 
 /* 引用卡片（深色气泡内） */
