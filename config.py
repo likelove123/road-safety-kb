@@ -25,6 +25,20 @@ RAW_DIR = ROOT / "data" / "raw"
 CHUNK_FILE = ROOT / "data" / "chunks.jsonl"
 DB_DIR = ROOT / "data" / "chroma"
 COLLECTION = "road_safety"
+KB_DB = ROOT / "data" / "kb.db"          # 文档元数据与审核流程（SQLite）
+UPLOAD_DIR = ROOT / "data" / "uploads"    # 后台上传的原始文件
+SAMPLE_DIR = ROOT / "data" / "samples"    # 示例文档（用于演示入库流程）
+
+# 文档类型、效力与审核状态（顺序即界面下拉顺序）
+DOC_TYPES = ["法律", "行政法规", "部门规章", "地方性法规", "行业标准", "办事指南", "案例", "行政处罚决定"]
+VALIDITIES = ["现行有效", "已修订", "已废止"]
+WORKFLOW = ["草稿", "待审核", "已发布", "已废止"]
+
+# 极简登录账号（云端可在 secrets 里覆盖）
+ADMIN_USER = _get("ADMIN_USER", "admin")
+ADMIN_PASSWORD = _get("ADMIN_PASSWORD", "admin123")
+GUEST_USER = _get("GUEST_USER", "guest")
+GUEST_PASSWORD = _get("GUEST_PASSWORD", "guest123")
 
 # 对话模型（DeepSeek，OpenAI 兼容接口）
 API_KEY = _get("API_KEY")

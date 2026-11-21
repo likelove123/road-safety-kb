@@ -1,13 +1,17 @@
-"""Streamlit 界面：提问 → 混合检索 → 带条款引用的回答。政务门户风格。"""
+"""Streamlit 界面：登录 → 智能问答 / 案情研判 / 文档库 / 知识管理。政务门户风格。"""
 import html
 import json
 from datetime import datetime
 
 import streamlit as st
-from openai import OpenAI
 
+import auth
 import config
-from retriever import retrieve
+import kb_store
+import ui_case
+import ui_docs
+import ui_manage
+import ui_qa
 
 st.set_page_config(page_title="道路运输安全 AI 知识库", page_icon="🚛", layout="wide")
 
@@ -172,6 +176,20 @@ section[data-testid="stSidebar"] * { color:#e8eef7 !important; }
   background:#0f2140 !important; border-color:#1f3a5f !important;
 }
 
+/* 固定模板答案卡片 */
+.ans-card {
+  background:#0f2140; border-left:4px solid var(--gov-red);
+  border-radius:6px; padding:12px 16px; margin-bottom:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+}
+.ans-head { font-size:13px; font-weight:700; color:#ffd166; letter-spacing:1px; }
+.ans-body { font-size:14px; color:#e8eef7; line-height:1.85; margin-top:6px; word-break:break-word; }
+.ans-conclusion { border-left-color:#d4a017; }
+.ans-basis { border-left-color:#13569e; }
+.ans-validity { border-left-color:#2e7d32; }
+.ans-penalty { border-left-color:#c8161d; }
+.ans-note { border-left-color:#6b7785; }
+
 /* 引用卡片（深色气泡内） */
 .cite-card {
   background:#13294a; border-left:4px solid var(--gov-red);
@@ -183,8 +201,23 @@ section[data-testid="stSidebar"] * { color:#e8eef7 !important; }
 .cite-article { background:#1e3a6b !important; color:#cfe0ff !important; padding:2px 10px; border-radius:4px; font-size:12px; font-weight:600; }
 .cite-status-valid { background:#14532d !important; color:#86efac !important; padding:2px 10px; border-radius:4px; font-size:11px; font-weight:600; }
 .cite-status-invalid { background:#7f1d1d !important; color:#fca5a5 !important; padding:2px 10px; border-radius:4px; font-size:11px; font-weight:600; }
+.cite-status-amend { background:#78350f !important; color:#fcd34d !important; padding:2px 10px; border-radius:4px; font-size:11px; font-weight:600; }
 .cite-src { font-size:11px; color:#8aa0c0 !important; margin-bottom:6px; }
+.cite-src a { color:#9ec5ff !important; }
 .cite-text { font-size:13px; color:#e8eef7 !important; line-height:1.7; white-space:pre-wrap; }
+
+/* 文档库行 */
+.doc-row {
+  background:#fff; border:1px solid #dbe3ef; border-left:4px solid var(--gov-blue);
+  border-radius:6px; padding:12px 16px; margin-bottom:10px;
+}
+.doc-main { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.doc-name { font-weight:700; color:var(--gov-blue); font-size:14px; }
+.doc-meta { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.7; }
+
+/* 登录卡片 */
+.login-title { text-align:center; color:var(--gov-blue); font-size:24px; font-weight:900; letter-spacing:2px; }
+.login-sub { text-align:center; color:var(--muted); font-size:12px; margin:6px 0 18px; }
 
 /* 页脚（政务风） */
 .gov-footer {
@@ -200,261 +233,170 @@ section[data-testid="stSidebar"] * { color:#e8eef7 !important; }
 """
 st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
 
-PROMPT = """你是道路运输安全领域的法规问答助手。只能依据下面提供的【资料片段】回答。
 
-规则：
-1. 只使用片段里的内容，不得引入片段之外的法规、标准或常识
-2. 每个结论后标注出处，格式：（《法规名》第X条）
-3. 片段里没有答案时，直接回答“现有资料中未找到相关条款”，并说明缺哪类资料，禁止编造条款号
-4. 用简洁的条目式中文，先给结论，再给依据
-
-【资料片段】
-{context}
-
-【用户问题】
-{question}"""
-
-
-def build_context(hits: list[dict]) -> str:
-    blocks = []
-    for i, h in enumerate(hits, 1):
-        blocks.append(f"[片段{i}] 来源：《{h['law_name']}》{h['article']}（{h['status']}）\n{h['text']}")
-    return "\n\n".join(blocks)
-
-
-def ask(question: str, hits: list[dict]) -> str:
-    client = OpenAI(api_key=config.API_KEY, base_url=config.BASE_URL)
-    resp = client.chat.completions.create(
-        model=config.CHAT_MODEL,
-        messages=[{"role": "user", "content": PROMPT.format(context=build_context(hits), question=question)}],
-        temperature=0.1,
-    )
-    return resp.choices[0].message.content
-
-
-def load_stats() -> tuple[int, int]:
-    """从切分文件读取真实统计：已收录法规数、条款片段数。"""
+def load_stats() -> tuple[int, int, int, dict[str, int]]:
+    """法规篇数、条款片段数、提问次数、各类型篇数。"""
     laws, n = set(), 0
     try:
         for line in config.CHUNK_FILE.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 c = json.loads(line)
-                laws.add(c.get("law_name", ""))
+                laws.add(c.get("doc_id") or c.get("law_name", ""))
                 n += 1
     except Exception:
         pass
-    return len(laws), n
-
-
-def render_citations(hits: list[dict]) -> None:
-    """把检索到的片段渲染成带状态徽标的引用卡片。"""
-    for i, h in enumerate(hits, 1):
-        law = html.escape(h.get("law_name", ""))
-        article = html.escape(h.get("article", ""))
-        source = html.escape(h.get("source", ""))
-        status = h.get("status", "")
-        text = html.escape(h.get("text", "")[:600])
-        status_cls = "cite-status-valid" if "有效" in status else "cite-status-invalid"
-        st.markdown(
-            f"""<div class="cite-card">
-                <div class="cite-head">
-                    <span class="cite-law">片段 {i}：《{law}》</span>
-                    <span class="cite-article">{article}</span>
-                    <span class="{status_cls}">{html.escape(status) or '状态未知'}</span>
-                </div>
-                <div class="cite-src">来源文件：{source}</div>
-                <div class="cite-text">{text}</div>
-            </div>""",
-            unsafe_allow_html=True,
-        )
-
-
-# ----------------------------- 政务顶栏 -----------------------------
-today = datetime.now().strftime("%Y 年 %m 月 %d 日  %A")
-st.markdown('<div class="gov-topline"></div>', unsafe_allow_html=True)
-st.markdown(
-    f"""<div class="gov-header">
-        <div class="gov-header-left">
-            <div class="gov-emblem">🚛</div>
-            <div>
-                <div class="gov-super">交通运输行业 · 道路运输安全监管智能辅助平台</div>
-                <div class="gov-title">道路运输安全 AI 知识库</div>
-            </div>
-        </div>
-        <div class="gov-sub">权威法规 · 精准检索 · 条款溯源<br/>{today}</div>
-    </div>""",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    '<div class="gov-notice">公　告：本系统基于现行公开法规构建，仅供学习研究与辅助参考，具体执法以有权机关发布的正式文本为准。</div>',
-    unsafe_allow_html=True,
-)
-
-# ----------------------------- 数据指标卡 -----------------------------
-total_laws, total_chunks = load_stats()
-if "search_history" not in st.session_state:
-    st.session_state.search_history = []
+    try:
+        by_type = {t: len(kb_store.list_documents(status="已发布", doc_type=t)) for t in config.DOC_TYPES}
+    except Exception:
+        by_type = {}
+    queries = 0
     hist_file = config.ROOT / "data" / "search_history.json"
     if hist_file.exists():
         try:
-            st.session_state.search_history = json.loads(hist_file.read_text(encoding="utf-8"))
+            queries = len(json.loads(hist_file.read_text(encoding="utf-8")))
         except Exception:
-            st.session_state.search_history = []
-query_count = len(st.session_state.search_history)
+            queries = 0
+    return len(laws), n, queries, by_type
 
-stat_cols = st.columns(4)
-with stat_cols[0]:
-    st.markdown(f'<div class="stat-card"><div class="stat-num">{total_laws}</div><div class="stat-label">收录法规</div><div class="stat-foot">部 · 现行有效</div></div>', unsafe_allow_html=True)
-with stat_cols[1]:
-    st.markdown(f'<div class="stat-card accent"><div class="stat-num">{total_chunks}</div><div class="stat-label">条款片段</div><div class="stat-foot">条 · 可溯源</div></div>', unsafe_allow_html=True)
-with stat_cols[2]:
-    st.markdown(f'<div class="stat-card"><div class="stat-num">{query_count}</div><div class="stat-label">累计提问</div><div class="stat-foot">次 · 历史留存</div></div>', unsafe_allow_html=True)
-with stat_cols[3]:
-    st.markdown(f'<div class="stat-card accent"><div class="stat-num" style="font-size:22px;padding-top:8px;">HYBRID</div><div class="stat-label">检索模式</div><div class="stat-foot">向量 + BM25 融合</div></div>', unsafe_allow_html=True)
 
-st.markdown('<div class="section-title">智能问答</div>', unsafe_allow_html=True)
-
-# ----------------------------- 侧边栏：功能导航 -----------------------------
-with st.sidebar:
-    st.markdown('<div class="nav-title">系 统 导 航</div>', unsafe_allow_html=True)
-    st.markdown("### 📚 法规问答")
-    st.caption("输入问题，系统检索现行法规并标注条款出处。")
-
-    st.markdown('<div class="nav-title">检 索 设 置</div>', unsafe_allow_html=True)
-    mode_label = st.radio(
-        "检索方式",
-        ["混合检索（向量 + BM25）", "仅向量检索", "仅关键词检索"],
-        help="对比实验用：切换不同检索方式，观察答案质量差异",
-    )
-    mode = {"混合检索（向量 + BM25）": "hybrid", "仅向量检索": "vector", "仅关键词检索": "bm25"}[mode_label]
-    top_k = st.slider("召回片段数", 3, 10, config.TOP_K)
-
-    st.markdown('<div class="nav-title">模 型 信 息</div>', unsafe_allow_html=True)
+def render_login() -> None:
+    st.markdown('<div class="gov-topline"></div>', unsafe_allow_html=True)
     st.markdown(
-        f"""<div class="nav-card"><div class="k">对话模型</div><div class="v">{html.escape(config.CHAT_MODEL)}</div></div>
-            <div class="nav-card"><div class="k">向量模型</div><div class="v">{html.escape(config.EMBED_MODEL)}</div></div>
-            <div class="nav-card"><div class="k">运行方式</div><div class="v">本地向量化 · 数据不外传</div></div>""",
+        """<div class="gov-header">
+            <div class="gov-header-left">
+                <div class="gov-emblem">🚛</div>
+                <div>
+                    <div class="gov-super">交通运输行业 · 道路运输安全监管智能辅助平台</div>
+                    <div class="gov-title">道路运输安全 AI 知识库</div>
+                </div>
+            </div>
+            <div class="gov-sub">权威法规 · 精准检索 · 条款溯源</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    _, mid, _ = st.columns([1, 1.3, 1])
+    with mid:
+        st.markdown('<div class="login-title">用户登录</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="login-sub">管理员可维护知识库；临时访客仅可查询，不能修改数据</div>',
+            unsafe_allow_html=True,
+        )
+        with st.form("login_form"):
+            username = st.text_input("账号", placeholder="请输入账号")
+            password = st.text_input("密码", type="password", placeholder="请输入密码")
+            ok = st.form_submit_button("登 录", type="primary", use_container_width=True)
+        if ok:
+            user = auth.authenticate(username, password)
+            if user:
+                auth.login(user)
+                st.rerun()
+            else:
+                st.error("账号或密码不正确")
+        st.caption("演示账号：管理员 admin / admin123　·　访客 guest / guest123")
+
+
+def render_header(user: dict) -> None:
+    today = datetime.now().strftime("%Y 年 %m 月 %d 日  %A")
+    st.markdown('<div class="gov-topline"></div>', unsafe_allow_html=True)
+    st.markdown(
+        f"""<div class="gov-header">
+            <div class="gov-header-left">
+                <div class="gov-emblem">🚛</div>
+                <div>
+                    <div class="gov-super">交通运输行业 · 道路运输安全监管智能辅助平台</div>
+                    <div class="gov-title">道路运输安全 AI 知识库</div>
+                </div>
+            </div>
+            <div class="gov-sub">权威法规 · 精准检索 · 条款溯源<br/>{today}　|　当前身份：{html.escape(user['name'])}</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="gov-notice">公　告：本系统基于现行公开法规构建，仅供学习研究与辅助参考，具体执法以有权机关发布的正式文本为准。</div>',
         unsafe_allow_html=True,
     )
 
-if not config.API_KEY:
-    st.error("还没有配置 API_KEY。把 .env.example 复制成 .env，填入 Key 后重开页面。")
-    st.stop()
 
-HISTORY_FILE = config.ROOT / "data" / "search_history.json"
-MAX_HISTORY = 10
-
-
-def save_history() -> None:
-    """把搜索历史写入本地文件，刷新页面后仍然保留。"""
-    try:
-        HISTORY_FILE.write_text(
-            json.dumps(st.session_state.search_history, ensure_ascii=False), encoding="utf-8"
+def render_stats(laws: int, chunks: int, queries: int, by_type: dict[str, int]) -> None:
+    cols = st.columns(4)
+    cards = [
+        (laws, "收录法规", "部 · 已发布入库", False),
+        (chunks, "条款片段", "条 · 可溯源", True),
+        (queries, "累计提问", "次 · 历史留存", False),
+        ("HYBRID", "检索模式", "向量 + BM25 融合", True),
+    ]
+    for col, (num, label, foot, accent) in zip(cols, cards):
+        cls = "stat-card accent" if accent else "stat-card"
+        style = ' style="font-size:22px;padding-top:8px;"' if isinstance(num, str) else ""
+        col.markdown(
+            f'<div class="{cls}"><div class="stat-num"{style}>{num}</div>'
+            f'<div class="stat-label">{label}</div><div class="stat-foot">{foot}</div></div>',
+            unsafe_allow_html=True,
         )
+    if by_type:
+        summary = "　·　".join(f"{k} {v}" for k, v in by_type.items() if v)
+        if summary:
+            st.caption(f"语料构成：{summary}")
+
+
+def main() -> None:
+    kb_store.init_db()
+    try:
+        kb_store.seed_from_raw()
     except Exception:
         pass
 
+    user = auth.current_user()
+    if not user:
+        render_login()
+        st.stop()
 
-# ----------------------------- 会话状态 -----------------------------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+    render_header(user)
+    laws, chunks, queries, by_type = load_stats()
+    render_stats(laws, chunks, queries, by_type)
 
-SUGGESTIONS = [
-    "运输危险货物，车上必须配押运人员吗？",
-    "驾驶员连续驾驶多长时间必须休息？",
-    "营运客车多久做一次综合性能检测？",
-    "动态监控发现超速报警，管理员该怎么处理？",
-    "包车客运能不能沿途揽客？",
-    "危险货物泄漏后第一现场怎么处置？",
-]
+    admin = auth.is_admin()
+    pages = ["智能问答", "案情研判", "文档库"] + (["知识管理"] if admin else [])
 
-# 渲染历史消息
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if msg["role"] == "assistant" and msg.get("hits"):
-            with st.expander(f"查看引用的 {len(msg['hits'])} 条原文", expanded=False):
-                render_citations(msg["hits"])
+    # 支持 ?page=案情研判 直达，便于演示与分享
+    qp = st.query_params.get("page")
+    if qp in pages and st.session_state.get("nav") != qp:
+        st.session_state.nav = qp
+    if st.session_state.get("nav") not in pages:
+        st.session_state.nav = pages[0]
 
-# 首屏无消息时显示建议问题
-if not st.session_state.messages:
-    st.markdown('<div class="suggest-label">热门问题（点击直接提问）</div>', unsafe_allow_html=True)
-    cols = st.columns(3)
-    for idx, q in enumerate(SUGGESTIONS):
-        with cols[idx % 3]:
-            st.markdown('<div class="suggest-btn">', unsafe_allow_html=True)
-            if st.button(q, key=f"suggest_{idx}", use_container_width=True):
-                st.session_state.pending_question = q
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+    with st.sidebar:
+        st.markdown('<div class="nav-title">当 前 身 份</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="nav-card"><div class="k">账号</div><div class="v">{html.escape(user["username"])}</div></div>'
+            f'<div class="nav-card"><div class="k">角色</div><div class="v">{html.escape(user["name"])}（'
+            f'{"可入库审核" if admin else "只读"}）</div></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="nav-title">功 能 导 航</div>', unsafe_allow_html=True)
+        page = st.radio("功能", pages, key="nav", label_visibility="collapsed")
+        st.query_params["page"] = page
+        if st.button("退出登录", use_container_width=True, key="logout_btn"):
+            auth.logout()
+            st.rerun()
 
-# 历史搜索记录：展示在输入框上方，点击即可再次提问
-if st.session_state.search_history:
-    hbar = st.columns([5, 1])
-    hbar[0].markdown('<div class="suggest-label">最近搜索（点击再次提问）</div>', unsafe_allow_html=True)
-    if hbar[1].button("清空", key="clear_history", use_container_width=True):
-        st.session_state.search_history = []
-        save_history()
-        st.rerun()
-    shown = st.session_state.search_history[:MAX_HISTORY]
-    chip_cols = st.columns(min(5, len(shown)))
-    for i, hq in enumerate(shown):
-        with chip_cols[i % min(5, len(shown))]:
-            st.markdown('<div class="history-chip">', unsafe_allow_html=True)
-            label = hq if len(hq) <= 14 else hq[:13] + "…"
-            if st.button(label, key=f"hist_{i}", help=hq, use_container_width=True):
-                st.session_state.pending_question = hq
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+    if page == "智能问答":
+        ui_qa.render()
+    elif page == "案情研判":
+        ui_case.render()
+    elif page == "文档库":
+        ui_docs.render()
+    elif page == "知识管理":
+        ui_manage.render(user=user["username"])
 
-# 处理输入：建议问题或聊天框
-pending = st.session_state.pop("pending_question", None)
-question = st.chat_input("请输入道路运输安全相关问题，例如：危险货物运输必须配备押运人员吗？") or pending
+    st.markdown(
+        """<div class="gov-footer">
+            <div class="main">道路运输安全 AI 知识库</div>
+            <div>主办单位：道路运输安全 AI 知识库项目组　　技术编程：TRAE/Streamlit/GitHub</div>
+            <div>© 2026 道路运输安全 AI 知识库　|　仅供学习研究使用</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
 
-if question:
-    # 记入搜索历史：去重、最新排最前、限制条数
-    hist = st.session_state.search_history
-    if question in hist:
-        hist.remove(question)
-    hist.insert(0, question)
-    st.session_state.search_history = hist[:MAX_HISTORY]
-    save_history()
 
-    st.session_state.messages.append({"role": "user", "content": question})
-    with st.chat_message("user"):
-        st.markdown(question)
-
-    with st.spinner("检索法规条款中…"):
-        try:
-            hits = retrieve(question, mode=mode, top_k=top_k)
-        except Exception as exc:
-            st.error(f"检索失败：{exc}\n\n先运行 ingest.py 建好索引了吗？")
-            st.stop()
-
-    if not hits:
-        answer = "没有检索到相关条款，换一种问法试试，或补充相关法规到知识库。"
-        st.session_state.messages.append({"role": "assistant", "content": answer, "hits": []})
-        with st.chat_message("assistant"):
-            st.warning(answer)
-    else:
-        with st.spinner("正在生成回答…"):
-            try:
-                answer = ask(question, hits)
-            except Exception as exc:
-                st.error(f"模型调用失败：{exc}")
-                st.stop()
-        st.session_state.messages.append({"role": "assistant", "content": answer, "hits": hits})
-        with st.chat_message("assistant"):
-            st.markdown(answer)
-            with st.expander(f"查看引用的 {len(hits)} 条原文", expanded=False):
-                render_citations(hits)
-
-# ----------------------------- 政务页脚 -----------------------------
-st.markdown(
-    """<div class="gov-footer">
-        <div class="main">道路运输安全 AI 知识库</div>
-        <div>主办单位：道路运输安全 AI 知识库项目组　　技术编程：TRAE/Streamlit/GitHub</div>
-        <div>© 2026 道路运输安全 AI 知识库　|　仅供学习研究使用</div>
-    </div>""",
-    unsafe_allow_html=True,
-)
+main()

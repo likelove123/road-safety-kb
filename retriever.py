@@ -10,6 +10,13 @@ _chunks: list[dict] | None = None
 _bm25: BM25Okapi | None = None
 
 
+def reload() -> None:
+    """发布或废止文档后调用，丢掉旧的片段与 BM25 缓存。"""
+    global _chunks, _bm25
+    _chunks = None
+    _bm25 = None
+
+
 def get_chunks() -> list[dict]:
     global _chunks
     if _chunks is None:

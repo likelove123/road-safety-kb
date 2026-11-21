@@ -7,3 +7,4 @@ data/search_history.json
 debug.log
 *.log
 .vscode/
+data/uploads/
