@@ -145,38 +145,38 @@ section[data-testid="stSidebar"] * { color:#e8eef7 !important; }
 [data-testid="stChatMessage"][data-test-role="user"] { background: var(--gov-blue) !important; }
 [data-testid="stChatMessage"][data-test-role="user"] * { color:#fff !important; }
 [data-testid="stChatMessage"][data-test-role="assistant"] {
-  background:#fff !important; border:1px solid #e2e8f4;
-  box-shadow:0 2px 8px rgba(11,61,124,.06);
-  color:#1a1a1a !important;
+  background:#0a1929 !important; border:1px solid #1f3a5f;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);
+  color:#ffffff !important;
 }
-/* 强制 AI 回答正文为深色，避免手机浏览器把文字渲染成浅色看不清 */
-[data-testid="stChatMessage"][data-test-role="assistant"] p,
-[data-testid="stChatMessage"][data-test-role="assistant"] li,
-[data-testid="stChatMessage"][data-test-role="assistant"] span,
-[data-testid="stChatMessage"][data-test-role="assistant"] div,
-[data-testid="stChatMessage"][data-test-role="assistant"] ul,
-[data-testid="stChatMessage"][data-test-role="assistant"] ol {
-  color:#1a1a1a !important;
+/* AI 回答：黑底白字，手机端强制高对比 */
+[data-testid="stChatMessage"][data-test-role="assistant"] * {
+  color:#ffffff !important;
 }
 [data-testid="stChatMessage"][data-test-role="assistant"] strong,
 [data-testid="stChatMessage"][data-test-role="assistant"] b {
-  color:#0b3d7c !important;
+  color:#ffd166 !important;
   font-weight:700 !important;
 }
+/* "查看引用"展开区也用深色，避免白底透出 */
+[data-testid="stChatMessage"][data-test-role="assistant"] [data-testid="stExpander"] {
+  background:#0f2140 !important;
+  border-color:#1f3a5f !important;
+}
 
-/* 引用卡片 */
+/* 引用卡片（深色气泡内） */
 .cite-card {
-  background:#fff; border-left:4px solid var(--gov-red);
+  background:#13294a; border-left:4px solid var(--gov-red);
   border-radius:4px; padding:12px 16px; margin-bottom:12px;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
+  box-shadow:0 2px 6px rgba(0,0,0,.3);
 }
 .cite-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
-.cite-law { font-weight:700; color:var(--gov-blue); font-size:15px; }
-.cite-article { background:var(--gov-blue-light); color:var(--gov-blue-2); padding:2px 10px; border-radius:4px; font-size:12px; font-weight:600; }
-.cite-status-valid { background:#e6f7ed; color:#1e8449; padding:2px 10px; border-radius:4px; font-size:11px; font-weight:600; }
-.cite-status-invalid { background:var(--gov-red-light); color:var(--gov-red); padding:2px 10px; border-radius:4px; font-size:11px; font-weight:600; }
-.cite-src { font-size:11px; color:#95a0b3; margin-bottom:6px; }
-.cite-text { font-size:13px; color:#3a4458; line-height:1.7; white-space:pre-wrap; }
+.cite-law { font-weight:700; color:#9ec5ff !important; font-size:15px; }
+.cite-article { background:#1e3a6b !important; color:#cfe0ff !important; padding:2px 10px; border-radius:4px; font-size:12px; font-weight:600; }
+.cite-status-valid { background:#14532d !important; color:#86efac !important; padding:2px 10px; border-radius:4px; font-size:11px; font-weight:600; }
+.cite-status-invalid { background:#7f1d1d !important; color:#fca5a5 !important; padding:2px 10px; border-radius:4px; font-size:11px; font-weight:600; }
+.cite-src { font-size:11px; color:#8aa0c0 !important; margin-bottom:6px; }
+.cite-text { font-size:13px; color:#e8eef7 !important; line-height:1.7; white-space:pre-wrap; }
 
 /* 页脚（政务风） */
 .gov-footer {
