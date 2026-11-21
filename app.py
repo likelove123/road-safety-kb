@@ -206,6 +206,20 @@ section[data-testid="stSidebar"] * { color:#e8eef7 !important; }
 .cite-src a { color:#9ec5ff !important; }
 .cite-text { font-size:13px; color:#e8eef7 !important; line-height:1.7; white-space:pre-wrap; }
 
+/* 文档预览弹窗：只读、可滚动 */
+.preview-box {
+  background:#fff;
+  border:1px solid #dbe3ef;
+  border-radius:6px;
+  padding:16px 20px;
+  max-height:62vh;
+  overflow:auto;
+  white-space:pre-wrap;
+  line-height:1.9;
+  font-size:14px;
+  color:#1f2d3d !important;
+}
+
 /* 文档库行 */
 .doc-row {
   background:#fff; border:1px solid #dbe3ef; border-left:4px solid var(--gov-blue);
