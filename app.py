@@ -358,11 +358,12 @@ def main() -> None:
     admin = auth.is_admin()
     pages = ["智能问答", "案情研判", "文档库"] + (["知识管理"] if admin else [])
 
-    # 支持 ?page=案情研判 直达，便于演示与分享
-    qp = st.query_params.get("page")
-    if qp in pages and st.session_state.get("nav") != qp:
-        st.session_state.nav = qp
-    if st.session_state.get("nav") not in pages:
+    # 支持 ?page=案情研判 直达，只在首次进入时生效；
+    # 之后以侧栏点击为准，否则每轮 rerun 都会被 URL 里的旧参数覆盖，导致点击无效
+    if "nav" not in st.session_state:
+        qp = st.query_params.get("page")
+        st.session_state.nav = qp if qp in pages else pages[0]
+    if st.session_state.nav not in pages:
         st.session_state.nav = pages[0]
 
     with st.sidebar:
@@ -375,7 +376,8 @@ def main() -> None:
         )
         st.markdown('<div class="nav-title">功 能 导 航</div>', unsafe_allow_html=True)
         page = st.radio("功能", pages, key="nav", label_visibility="collapsed")
-        st.query_params["page"] = page
+        if st.query_params.get("page") != page:
+            st.query_params["page"] = page
         if st.button("退出登录", use_container_width=True, key="logout_btn"):
             auth.logout()
             st.rerun()
