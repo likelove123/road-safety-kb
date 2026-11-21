@@ -3,4 +3,7 @@ __pycache__/
 *.pyc
 .env
 data/eval_*.csv
+data/search_history.json
+debug.log
+*.log
 .vscode/
