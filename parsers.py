@@ -70,16 +70,67 @@ class _HTMLText(HTMLParser):
             self.parts.append(data)
 
 
-def fetch_url(url: str, timeout: int = 20) -> tuple[str, str]:
-    """抓取网页，返回 (标题, 正文)。"""
+class FetchError(Exception):
+    """网页抓取失败，异常信息已转换为可读中文。"""
+
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9",
+}
+
+_TIMEOUT_HINT = (
+    "连接超时：当前服务器无法访问该网站。"
+    "若你正在使用云端（Streamlit Cloud），其服务器在境外，不少政务网站会屏蔽或限制境外访问。"
+    "解决办法：① 在本地运行本系统后再抓取；② 或把网页另存为文件，改用「上传文件」入库。"
+)
+
+
+def fetch_url(url: str, timeout: int = 25) -> tuple[str, str]:
+    """抓取网页，返回 (标题, 正文)。
+
+    依次尝试 https（证书异常时不校验证书）与 http，失败时抛出带中文提示的 FetchError。
+    """
     import requests
 
-    resp = requests.get(
-        url,
-        timeout=timeout,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; RoadSafetyKB/1.0)"},
-    )
-    resp.raise_for_status()
+    url = (url or "").strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    targets = [url]
+    if url.startswith("https://"):
+        targets.append("http://" + url[len("https://"):])
+
+    resp = None
+    last_error: FetchError | None = None
+    for target in targets:
+        try:
+            try:
+                resp = requests.get(target, timeout=timeout, headers=_HEADERS)
+            except requests.exceptions.SSLError:
+                # 部分政务网站证书链不完整，退回不校验证书再试一次
+                import urllib3
+
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                resp = requests.get(target, timeout=timeout, headers=_HEADERS, verify=False)
+            resp.raise_for_status()
+            break
+        except requests.exceptions.ConnectTimeout:
+            last_error = FetchError(_TIMEOUT_HINT)
+        except requests.exceptions.HTTPError as exc:
+            last_error = FetchError(
+                f"网站返回状态码 {exc.response.status_code}，可能需要登录或已拦截自动访问，"
+                "可改用「上传文件」入库。"
+            )
+        except requests.exceptions.RequestException as exc:
+            last_error = FetchError(f"无法连接该网站：{exc}")
+    else:
+        raise last_error or FetchError("抓取失败")
+
     if not resp.encoding or resp.encoding.lower() == "iso-8859-1":
         resp.encoding = resp.apparent_encoding or "utf-8"
     parser = _HTMLText()
@@ -87,6 +138,8 @@ def fetch_url(url: str, timeout: int = 20) -> tuple[str, str]:
     lines = [ln.strip() for ln in "".join(parser.parts).splitlines()]
     text = "\n".join(ln for ln in lines if ln)
     text = re.sub(r"\n{3,}", "\n\n", text)
+    if not text.strip():
+        raise FetchError("未提取到正文，该页面可能由脚本动态生成，请改用「上传文件」入库。")
     return (parser.title.strip() or url), text
 
 
