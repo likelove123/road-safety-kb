@@ -60,8 +60,8 @@ def _download_payload(doc: dict) -> tuple[bytes, str, str]:
 
 
 @st.dialog("文档预览", width="large")
-def _show_preview(doc: dict) -> None:
-    status = "现行有效文档" if doc["status"] == "已发布" else "已废止文档"
+def show_preview(doc: dict) -> None:
+    status = {"已发布": "现行有效文档", "已废止": "已废止文档"}.get(doc["status"], doc["status"])
     st.caption(
         f"《{doc['law_name']}》　·　{doc['doc_type']}　·　{doc['validity']}　·　{status}"
         "　·　预览为只读，不可编辑"
@@ -122,7 +122,7 @@ def render() -> None:
                     unsafe_allow_html=True,
                 )
             if col_preview.button("预览", key=f"preview_{d['doc_id']}", use_container_width=True):
-                _show_preview(d)
+                show_preview(d)
             data, filename, mime = _download_payload(d)
             col_download.download_button(
                 "下载",

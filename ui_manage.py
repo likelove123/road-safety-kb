@@ -7,6 +7,7 @@ import streamlit as st
 import config
 import kb_store
 import parsers
+import ui_docs
 
 UPLOAD_TYPES = ["pdf", "docx", "txt", "md"]
 
@@ -175,6 +176,8 @@ def _review(user: str) -> None:
         f"生成日期：{doc['issue_date'] or '—'}　废止日期：{doc['repeal_date'] or '—'}　"
         f"来源：{doc['source_url'] or '—'}"
     )
+    if st.button("预览文档内容", key="review_preview", use_container_width=True):
+        ui_docs.show_preview(doc)
     note = st.text_input("审核意见（退回时填写）", key="review_note")
 
     c1, c2 = st.columns(2)
