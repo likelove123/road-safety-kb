@@ -1,11 +1,19 @@
 """文档解析与切块：PDF / Word / 文本 / 网页，按“条”或章节切分，绝不整篇入库。"""
 import re
+import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
 import config
 
 SUPPORTED = {".pdf", ".docx", ".txt", ".md"}
+
+# CJK 部首补充区（U+2E80–U+2EFF）的字符 NFKC 不会规范化，需手工映射回标准汉字，
+# 否则「⻛」「⻓」这类字在检索时与「风」「长」匹配不上。
+_RADICAL_MAP = str.maketrans({
+    "⺠": "民", "⻋": "车", "⻓": "长", "⻔": "门", "⻛": "风", "⻩": "黄", "⻬": "齐",
+    "⻉": "贝", "⻅": "见", "⻜": "飞", "⻝": "食", "⻢": "马", "⻦": "鸟", "⻥": "鱼",
+})
 
 # 法规条款起始：行首“第X条”
 ART_LINE = re.compile(r"(?m)^\s*(第[一二三四五六七八九十百千零〇两0-9]+条)\s*")
@@ -18,18 +26,24 @@ NUM_HEADING = re.compile(r"(?m)^\s*(\d+(?:\.\d+){0,3})\s+([^\n]{2,40})$")
 
 
 def read_file(path: Path) -> str:
-    """读取本地文件文本。"""
+    """读取本地文件文本，并做 NFKC 规范化。
+
+    部分 PDF 把汉字提取为康熙部首字符（如 ⽹ ⾏ ⼈ ⺠），
+    不规范化会导致正常汉字检索不到，统一在读取时转回标准写法。
+    """
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         from pypdf import PdfReader
 
         reader = PdfReader(str(path))
-        return "\n".join((page.extract_text() or "") for page in reader.pages)
-    if suffix == ".docx":
+        text = "\n".join((page.extract_text() or "") for page in reader.pages)
+    elif suffix == ".docx":
         import docx
 
-        return "\n".join(p.text for p in docx.Document(str(path)).paragraphs)
-    return Path(path).read_text(encoding="utf-8", errors="ignore")
+        text = "\n".join(p.text for p in docx.Document(str(path)).paragraphs)
+    else:
+        text = Path(path).read_text(encoding="utf-8", errors="ignore")
+    return unicodedata.normalize("NFKC", text).translate(_RADICAL_MAP)
 
 
 class _HTMLText(HTMLParser):
